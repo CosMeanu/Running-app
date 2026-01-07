@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RunCalc Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .loader {
+            border: 3px solid #f3f3f3; border-top: 3px solid #2563EB; border-radius: 50%;
+            width: 24px; height: 24px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .day-checkbox:checked + label {
+            background-color: #2563EB; color: white; border-color: #2563EB;
+        }
+        .intervals-format {
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            background-color: #f8fafc;
+            border-left: 3px solid #3b82f6;
+            padding: 8px;
+            margin-top: 4px;
+            font-size: 0.85rem;
+            color: #334155;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen pb-20 md:pb-0">
+
+    <div class="max-w-3xl mx-auto bg-white min-h-screen shadow-xl md:min-h-0 md:my-8 md:rounded-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-4 text-center sticky top-0 z-10 shadow-md">
+            <h1 class="text-xl font-bold text-white">RunCalc Pro</h1>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-gray-200 fixed bottom-0 w-full bg-white md:static md:w-auto z-20 shadow-inner md:shadow-none">
+            <button onclick="switchTab('calc')" id="tab-calc" class="flex-1 py-4 text-sm font-semibold text-blue-600 border-t-2 md:border-t-0 md:border-b-2 border-blue-600 focus:outline-none transition-colors">
+                Calculator
+            </button>
+            <button onclick="switchTab('goal')" id="tab-goal" class="flex-1 py-4 text-sm font-semibold text-gray-500 hover:text-blue-600 focus:outline-none transition-colors">
+                Obiective
+            </button>
+            <button onclick="switchTab('ai')" id="tab-ai" class="flex-1 py-4 text-sm font-semibold text-gray-500 hover:text-blue-600 focus:outline-none transition-colors">
+                Antrenor AI
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4 md:p-8 mb-16 md:mb-0">
+
+            <!-- 1. CALCULATOR -->
+            <div id="view-calc" class="space-y-6 animate-fade">
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Ritm (Pace)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="paceMin" placeholder="00" class="w-full p-3 text-2xl text-center border rounded-lg focus:ring-blue-500 focus:border-blue-500" oninput="calcFromPace()">
+                            <span class="text-xl font-bold text-gray-300">:</span>
+                            <input type="number" id="paceSec" placeholder="00" class="w-full p-3 text-2xl text-center border rounded-lg focus:ring-blue-500 focus:border-blue-500" oninput="calcFromPace()">
+                            <span class="text-sm font-medium text-gray-400">/km</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Viteză</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="speedKmh" placeholder="0.0" step="0.1" class="w-full p-3 text-2xl text-center border rounded-lg focus:ring-blue-500 focus:border-blue-500" oninput="calcFromSpeed()">
+                            <span class="text-sm font-medium text-gray-400">km/h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border rounded-xl overflow-hidden">
+                    <div class="bg-gray-100 px-4 py-2 text-xs font-bold text-gray-500 uppercase flex justify-between items-center">
+                        <span>Timpi Estimați (ETA)</span>
+                    </div>
+                    
+                    <!-- User Distance Input Row -->
+                    <div class="p-3 bg-blue-50 border-b border-gray-100 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-blue-800">User Distance:</span>
+                            <input type="number" id="customDistCalc" placeholder="km" class="w-20 p-1 text-sm border rounded text-center focus:ring-blue-500" oninput="recalcEta()">
+                        </div>
+                        <span id="eta-custom" class="font-mono font-bold text-blue-600">--:--:--</span>
+                    </div>
+
+                    <div class="divide-y divide-gray-100">
+                        <div class="flex justify-between p-3 text-sm"><span>1 km</span><span id="eta-1k" class="font-mono font-medium">--:--:--</span></div>
+                        <div class="flex justify-between p-3 text-sm"><span>5 km</span><span id="eta-5k" class="font-mono font-medium">--:--:--</span></div>
+                        <div class="flex justify-between p-3 text-sm"><span>10 km</span><span id="eta-10k" class="font-mono font-medium">--:--:--</span></div>
+                        <div class="flex justify-between p-3 text-sm"><span>Semimaraton</span><span id="eta-half" class="font-mono font-medium">--:--:--</span></div>
+                        <div class="flex justify-between p-3 text-sm"><span>Maraton</span><span id="eta-full" class="font-mono font-medium">--:--:--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. OBIECTIVE -->
+            <div id="view-goal" class="hidden space-y-6 animate-fade">
+                <div class="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm">
+                    Calculează ritmul necesar pentru a-ți atinge timpul țintă.
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Distanță</label>
+                        <select id="goalDistance" class="w-full p-3 border border-gray-300 rounded-lg bg-white" onchange="toggleCustomGoalDist()">
+                            <option value="5">5 km</option>
+                            <option value="10" selected>10 km</option>
+                            <option value="21.0975">Semimaraton</option>
+                            <option value="42.195">Maraton</option>
+                            <option value="custom">Altă distanță (User Distance)...</option>
+                        </select>
+                        <!-- Custom Distance Input (Hidden by default) -->
+                        <div id="customGoalDistContainer" class="hidden mt-2">
+                            <label class="text-xs text-gray-500">Introdu distanța (km):</label>
+                            <input type="number" id="customDistGoal" placeholder="ex: 13.5" class="w-full p-2 border border-blue-300 rounded-lg bg-blue-50 focus:bg-white transition-colors" oninput="calcGoal()">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Timp Țintă</label>
+                        <div class="flex gap-2">
+                            <div class="flex-1"><input type="number" id="goalH" placeholder="H" class="w-full p-3 border rounded-lg text-center"><div class="text-[10px] text-center text-gray-400 mt-1">ORE</div></div>
+                            <div class="flex-1"><input type="number" id="goalM" placeholder="M" class="w-full p-3 border rounded-lg text-center"><div class="text-[10px] text-center text-gray-400 mt-1">MIN</div></div>
+                            <div class="flex-1"><input type="number" id="goalS" placeholder="S" class="w-full p-3 border rounded-lg text-center"><div class="text-[10px] text-center text-gray-400 mt-1">SEC</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800 text-white p-4 rounded-xl text-center">
+                        <div class="text-[10px] uppercase text-gray-400 font-bold">Ritm Necesar</div>
+                        <div id="goalPace" class="text-2xl font-bold mt-1">--:--</div>
+                        <div class="text-xs text-gray-500">min/km</div>
+                    </div>
+                    <div class="bg-gray-800 text-white p-4 rounded-xl text-center">
+                        <div class="text-[10px] uppercase text-gray-400 font-bold">Viteză</div>
+                        <div id="goalSpeed" class="text-2xl font-bold mt-1">-.-</div>
+                        <div class="text-xs text-gray-500">km/h</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. ANTRENOR AI (GEMINI) -->
+            <div id="view-ai" class="hidden space-y-6 animate-fade">
+                
+                <!-- Cheie API -->
+                <div id="api-key-container" class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 hidden">
+                    <label class="block text-xs font-bold text-yellow-800 uppercase mb-2">Configurare (doar pe telefon)</label>
+                    <input type="password" id="apiKey" placeholder="Cheie Google Gemini..." class="w-full p-2 border border-yellow-300 rounded text-sm mb-2">
+                    <div class="flex justify-between items-center">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-blue-600 underline">Obține cheie gratuită</a>
+                        <button onclick="saveApiKey()" class="bg-yellow-600 text-white text-xs px-3 py-1.5 rounded font-bold">Salvează</button>
+                    </div>
+                </div>
+                <div id="api-key-saved" class="hidden flex justify-between items-center text-xs text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                    <span>✅ Cheie salvată</span>
+                    <button onclick="clearApiKey()" class="text-red-500 hover:underline">Șterge</button>
+                </div>
+
+                <!-- Profil -->
+                <div class="space-y-4 border-t pt-4">
+                    <h3 class="text-sm font-bold text-gray-800 uppercase">1. Profil Sportiv</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs text-gray-500">Sex</label><select id="aiSex" class="w-full p-2 border rounded"><option>Masculin</option><option>Feminin</option></select></div>
+                        <div><label class="text-xs text-gray-500">Vârstă</label><input type="number" id="aiAge" class="w-full p-2 border rounded"></div>
+                        <!-- Câmp Distanță Medie -->
+                        <div class="col-span-2">
+                            <label class="text-xs text-gray-800 font-bold">Dist. Medie Săpt. (km)</label>
+                            <input type="number" id="aiVolume" placeholder="ex: 25 km" class="w-full p-2 border rounded border-blue-300 bg-blue-50 focus:bg-white transition-colors">
+                            <p class="text-[10px] text-gray-400 mt-1">Critic pentru calculul volumului.</p>
+                        </div>
+                        <div><label class="text-xs text-gray-500">HR Max</label><input type="number" id="aiHrMax" placeholder="bpm" class="w-full p-2 border rounded"></div>
+                        <div><label class="text-xs text-gray-500">Prag (LTHR)</label><input type="number" id="aiLthr" placeholder="bpm" class="w-full p-2 border rounded"></div>
+                        <div><label class="text-xs text-gray-500">VO2Max</label><input type="number" id="aiVo2" placeholder="est." class="w-full p-2 border rounded"></div>
+                    </div>
+                </div>
+
+                <!-- Cursa -->
+                <div class="space-y-4 border-t pt-4">
+                    <h3 class="text-sm font-bold text-gray-800 uppercase">2. Obiectiv Cursă</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs text-gray-500">Distanță</label><select id="aiDist" class="w-full p-2 border rounded"><option value="5 km">5 km</option><option value="10 km" selected>10 km</option><option value="Semimaraton">Semimaraton</option><option value="Maraton">Maraton</option></select></div>
+                        <div><label class="text-xs text-gray-500">Durată (săpt)</label><input type="number" id="aiWeeks" value="12" class="w-full p-2 border rounded"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1"><label class="text-xs text-gray-500">Timp Acum</label><input type="text" id="aiCurTime" placeholder="HH:MM" class="w-full p-2 border rounded text-center"></div>
+                        <span class="text-gray-400 mt-4">&rarr;</span>
+                        <div class="flex-1"><label class="text-xs text-gray-500">Timp Țintă</label><input type="text" id="aiTarTime" placeholder="HH:MM" class="w-full p-2 border rounded text-center"></div>
+                    </div>
+                </div>
+
+                <!-- Program -->
+                <div class="space-y-4 border-t pt-4">
+                    <h3 class="text-sm font-bold text-gray-800 uppercase">3. Program Săptămânal</h3>
+                    <p class="text-xs text-gray-500 mb-2">Bifează zilele în care poți alerga:</p>
+                    <div class="flex flex-wrap gap-2" id="day-selector"></div>
+                    
+                    <div id="key-workouts" class="hidden bg-blue-50 p-3 rounded-lg space-y-2 mt-2 transition-all duration-300">
+                        <p class="text-[10px] text-blue-800 font-bold mb-1">Asignare Automată (poți modifica):</p>
+                        <div class="flex justify-between items-center"><label class="text-xs font-bold text-blue-800">Tempo/Progresiv</label><select id="tempoDay" class="text-xs p-1 rounded border-blue-200 w-24"></select></div>
+                        <div class="flex justify-between items-center"><label class="text-xs font-bold text-red-600">Intervale</label><select id="intervalDay" class="text-xs p-1 rounded border-red-200 w-24"></select></div>
+                        <div class="flex justify-between items-center"><label class="text-xs font-bold text-green-700">Alergare Lungă</label><select id="longRunDay" class="text-xs p-1 rounded border-green-200 w-24"></select></div>
+                    </div>
+                </div>
+
+                <button id="genBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg mt-6 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200">
+                    Generează Plan Antrenament
+                </button>
+                <p id="form-error" class="text-center text-xs text-red-500 mt-2 h-4"></p>
+
+                <!-- Output -->
+                <div id="result-area" class="hidden border-t-2 border-blue-100 mt-8 pt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold">Planul Generat</h3>
+                        <button onclick="exportPDF()" class="text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded font-medium">PDF</button>
+                    </div>
+                    <div id="loader" class="hidden flex justify-center py-4"><div class="loader"></div></div>
+                    <div id="aiOutput" class="text-sm font-sans whitespace-pre-wrap bg-white p-6 border rounded-lg max-h-[600px] overflow-y-auto leading-relaxed shadow-inner"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const weekDays = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
+        
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            checkApiKey();
+            renderDays();
+            
+            // Listeners pt Validare
+            const inputs = ['aiAge', 'aiSex', 'aiVo2', 'aiHrMax', 'aiLthr', 'aiDist', 'aiWeeks', 'aiCurTime', 'aiTarTime', 'aiVolume', 'apiKey', 'tempoDay', 'intervalDay', 'longRunDay'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.addEventListener('input', validateGenBtn);
+                if(el) el.addEventListener('change', validateGenBtn);
+            });
+            
+            document.getElementById('genBtn').addEventListener('click', generatePlan);
+            
+            // Calc Goals listeners
+            ['goalDistance', 'goalH', 'goalM', 'goalS', 'customDistGoal'].forEach(id => document.getElementById(id).addEventListener('input', calcGoal));
+        });
+
+        // --- API KEY MANAGEMENT ---
+        function checkApiKey() {
+            const isCanvas = typeof __app_id !== 'undefined';
+            const storedKey = localStorage.getItem('gemini_api_key');
+
+            if (isCanvas) {
+                document.getElementById('api-key-container').classList.add('hidden');
+            } else if (storedKey) {
+                document.getElementById('api-key-container').classList.add('hidden');
+                document.getElementById('api-key-saved').classList.remove('hidden');
+                document.getElementById('apiKey').value = storedKey;
+            } else {
+                document.getElementById('api-key-container').classList.remove('hidden');
+                document.getElementById('api-key-saved').classList.add('hidden');
+            }
+            validateGenBtn();
+        }
+
+        window.saveApiKey = () => {
+            const val = document.getElementById('apiKey').value.trim();
+            if(val) {
+                localStorage.setItem('gemini_api_key', val);
+                checkApiKey();
+            } else {
+                alert("Introdu o cheie validă.");
+            }
+        };
+
+        window.clearApiKey = () => {
+            localStorage.removeItem('gemini_api_key');
+            document.getElementById('apiKey').value = '';
+            checkApiKey();
+        };
+
+        // --- TABS ---
+        window.switchTab = (tab) => {
+            ['calc','goal','ai'].forEach(id => {
+                document.getElementById('view-'+id).classList.add('hidden');
+                const btn = document.getElementById('tab-'+id);
+                btn.classList.remove('text-blue-600', 'border-t-2', 'md:border-b-2', 'border-blue-600');
+                btn.classList.add('text-gray-500');
+            });
+            document.getElementById('view-'+tab).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-'+tab);
+            activeBtn.classList.remove('text-gray-500');
+            activeBtn.classList.add('text-blue-600', 'border-t-2', 'md:border-t-0', 'md:border-b-2', 'border-blue-600');
+        };
+
+        // --- CALCULATOR & GOAL ---
+        // Helper recalculation for custom distance in calculator
+        function recalcEta() {
+            // Trigger recalculation using current pace values
+            calcFromPace(); 
+        }
+
+        window.calcFromPace = () => {
+            const m=parseFloat(document.getElementById('paceMin').value)||0, s=parseFloat(document.getElementById('paceSec').value)||0;
+            const sec=m*60+s; 
+            if(sec>0) { 
+                document.getElementById('speedKmh').value=(3600/sec).toFixed(2); 
+                updateEta(sec); 
+            }
+        };
+        window.calcFromSpeed = () => {
+            const s=parseFloat(document.getElementById('speedKmh').value);
+            if(s>0) { 
+                const sec=3600/s; 
+                document.getElementById('paceMin').value=Math.floor(sec/60); 
+                document.getElementById('paceSec').value=Math.round(sec%60); 
+                updateEta(sec); 
+            }
+        };
+        
+        function updateEta(s) {
+            const f=(sec)=>{const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),sc=Math.round(sec%60); return `${h}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`};
+            document.getElementById('eta-1k').innerText=f(s); 
+            document.getElementById('eta-5k').innerText=f(s*5); 
+            document.getElementById('eta-10k').innerText=f(s*10); 
+            document.getElementById('eta-half').innerText=f(s*21.0975); 
+            document.getElementById('eta-full').innerText=f(s*42.195);
+            
+            // Update custom distance ETA
+            const customDist = parseFloat(document.getElementById('customDistCalc').value);
+            if (customDist > 0) {
+                document.getElementById('eta-custom').innerText = f(s * customDist);
+            } else {
+                document.getElementById('eta-custom').innerText = "--:--:--";
+            }
+        }
+
+        window.toggleCustomGoalDist = () => {
+            const val = document.getElementById('goalDistance').value;
+            const customInputDiv = document.getElementById('customGoalDistContainer');
+            if(val === 'custom') {
+                customInputDiv.classList.remove('hidden');
+            } else {
+                customInputDiv.classList.add('hidden');
+                calcGoal(); // Recalculate immediately if switching back to standard
+            }
+        }
+
+        window.calcGoal = () => {
+            let dist = parseFloat(document.getElementById('goalDistance').value);
+            // Check for custom distance
+            if(isNaN(dist)) { // Value is 'custom' string
+                dist = parseFloat(document.getElementById('customDistGoal').value);
+            }
+
+            const h=parseFloat(document.getElementById('goalH').value)||0, m=parseFloat(document.getElementById('goalM').value)||0, s=parseFloat(document.getElementById('goalS').value)||0;
+            const tot=h*3600+m*60+s;
+            
+            if(dist>0 && tot>0) {
+                const spk=tot/dist; const spd=3600/spk;
+                document.getElementById('goalPace').innerText=`${Math.floor(spk/60)}:${Math.round(spk%60).toString().padStart(2,'0')}`;
+                document.getElementById('goalSpeed').innerText=spd.toFixed(2);
+            } else {
+                document.getElementById('goalPace').innerText = "--:--";
+                document.getElementById('goalSpeed').innerText = "-.-";
+            }
+        };
+
+        // --- AI FORM ---
+        function renderDays() {
+            const c = document.getElementById('day-selector');
+            weekDays.forEach(d => {
+                const div = document.createElement('div');
+                div.innerHTML = `<input type="checkbox" id="chk-${d}" value="${d}" class="day-checkbox hidden"><label for="chk-${d}" class="px-3 py-2 border rounded cursor-pointer text-xs font-bold select-none transition-colors">${d.substring(0,3)}</label>`;
+                c.appendChild(div);
+                div.querySelector('input').addEventListener('change', updateWorkouts);
+            });
+        }
+        
+        function updateWorkouts() {
+            const sel = Array.from(document.querySelectorAll('.day-checkbox:checked')).map(c=>c.value);
+            const wDiv = document.getElementById('key-workouts');
+            if(sel.length>=3) {
+                wDiv.classList.remove('hidden');
+                ['tempoDay','intervalDay','longRunDay'].forEach(id => {
+                    const el = document.getElementById(id); const val = el.value; el.innerHTML = '<option value="" disabled selected>-</option>';
+                    sel.forEach(d => el.innerHTML+=`<option value="${d}">${d}</option>`);
+                    
+                    // Auto-select logic if current value is invalid
+                    if(sel.includes(val)) {
+                         el.value=val;
+                    } else {
+                        // Simple default assignment logic
+                        if(id === 'tempoDay' && sel[0]) el.value = sel[0];
+                        if(id === 'intervalDay' && sel[1]) el.value = sel[1];
+                        if(id === 'longRunDay' && sel[sel.length-1]) el.value = sel[sel.length-1];
+                    }
+                });
+            } else { wDiv.classList.add('hidden'); }
+            validateGenBtn();
+        }
+
+        function validateGenBtn() {
+            const isCanvas = typeof __app_id !== 'undefined';
+            const key = document.getElementById('apiKey').value;
+            const hasKey = isCanvas || key.trim().length > 0;
+            
+            const days = document.querySelectorAll('.day-checkbox:checked').length;
+            const wVisible = !document.getElementById('key-workouts').classList.contains('hidden');
+            const wSet = wVisible ? (document.getElementById('tempoDay').value && document.getElementById('intervalDay').value && document.getElementById('longRunDay').value) : true;
+            
+            const time = document.getElementById('aiTarTime').value;
+            const vol = document.getElementById('aiVolume').value;
+            
+            const btn = document.getElementById('genBtn');
+            const err = document.getElementById('form-error');
+
+            if (!hasKey) { btn.disabled = true; err.innerText = "Lipsește cheia API."; return; }
+            if (days < 3) { btn.disabled = true; err.innerText = "Selectează minim 3 zile."; return; }
+            if (!wSet) { btn.disabled = true; err.innerText = "Configurează zilele cheie."; return; }
+            if (!time || !vol) { btn.disabled = true; err.innerText = "Completează timpul și volumul."; return; }
+            
+            btn.disabled = false;
+            err.innerText = "";
+        }
+
+        // --- GENERATION ---
+        async function generatePlan() {
+            const resDiv = document.getElementById('result-area');
+            const out = document.getElementById('aiOutput');
+            const loader = document.getElementById('loader');
+            
+            resDiv.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            out.innerText = '';
+
+            // Data
+            const d = {
+                sex: document.getElementById('aiSex').value, age: document.getElementById('aiAge').value,
+                hr: document.getElementById('aiHrMax').value, lthr: document.getElementById('aiLthr').value, vo2: document.getElementById('aiVo2').value,
+                dist: document.getElementById('aiDist').value, weeks: document.getElementById('aiWeeks').value,
+                cur: document.getElementById('aiCurTime').value, tar: document.getElementById('aiTarTime').value,
+                vol: document.getElementById('aiVolume').value,
+                days: Array.from(document.querySelectorAll('.day-checkbox:checked')).map(c=>c.value).join(','),
+                tempo: document.getElementById('tempoDay').value, int: document.getElementById('intervalDay').value, long: document.getElementById('longRunDay').value
+            };
+
+            // Prompt intarit pentru formatul saptamanii si Intervals
+            const prompt = `Ești antrenor alergare elită.
+            Sarcina: Plan ${d.dist} în ${d.weeks} săptămâni.
+            
+            Profil:
+            - ${d.sex}, ${d.age} ani. Volum Săptămânal Actual: ${d.vol} km.
+            - HRmax: ${d.hr}, LTHR: ${d.lthr}, VO2: ${d.vo2}.
+            - Timp Acum: ${d.cur} -> Obiectiv: ${d.tar}.
+            - Program: Zile ${d.days}. Tempo: ${d.tempo}, Intervale: ${d.int}, Lungă: ${d.long}.
+            
+            SARCINĂ CRITICĂ - AFISARE COMPLETA:
+            1. Trebuie sa generezi text pentru FIECARE ZI din FIECARE SAPTAMANA, de la Saptamana 1 pana la Saptamana ${d.weeks}.
+            2. ESTE STRICT INTERZIS sa rezumi (ex: "Saptamanile 2-5: repeta"). Daca faci asta, planul este invalid.
+            3. Daca planul are 14 saptamani, vreau sa vad 14 titluri de saptamana si 7 zile sub fiecare.
+            
+            FORMAT ZILNIC (Intervals.icu style) - OBLIGATORIU:
+            
+            ### SĂPTĂMÂNA X (Total: ~km)
+            
+            **[ZIUA], Săptămâna X**
+            Warmup
+            - [durată/dist] @ [ritm] [Zona]
+            Main Set
+            - [detalii]
+            Cooldown
+            - [durată/dist] @ [ritm] [Zona]
+
+            Reguli extra:
+            - Adaugă numărul săptămânii lângă Zi (ex: "**Luni, Săptămâna 1**").
+            - Include Ritmul (min/km) și Zona (Z1-Z5) la fiecare pas. 
+            - Bolduiește numele zilei.
+            Generează două planuri: 1. Realist, 2. Țintă.
+            `;
+
+            // API Logic
+            const isCanvas = typeof __app_id !== 'undefined';
+            let key = document.getElementById('apiKey').value.trim();
+            let model = "gemini-1.5-flash"; 
+            
+            if(isCanvas && !key) {
+                model = "gemini-2.5-flash-preview-09-2025";
+                key = "";
+            }
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+                const resp = await fetch(url, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if(!resp.ok) throw new Error(`Eroare API ${resp.status}`);
+                const json = await resp.json();
+                
+                // Procesare simpla pentru a face textul mai citibil
+                let text = json.candidates[0].content.parts[0].text;
+                // Inlocuim markeri markdown cu HTML simplu pentru bold si linii
+                text = text.replace(/\*\*(.*?)\*\*/g, '<span class="font-bold text-blue-900">$1</span>');
+                text = text.replace(/### (.*?)/g, '<br><h4 class="text-lg font-bold text-gray-900 border-b-2 border-blue-100 mt-6 mb-3 pb-1">$1</h4>');
+                
+                // Aplicam stilul intervals.icu pentru liniile cu liniuta
+                text = text.replace(/- (.*?)(\n|$)/g, '<div class="intervals-format">$1</div>');
+
+                out.innerHTML = text;
+            } catch(e) {
+                out.innerText = "Eroare: " + e.message + "\n\nVerifică dacă ai introdus cheia API (dacă ești pe telefon).";
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        window.exportPDF = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(10);
+            // Pentru PDF folosim textul raw, fara HTML tags
+            const rawText = document.getElementById('aiOutput').innerText;
+            const lines = doc.splitTextToSize(rawText, 180);
+            doc.text(lines, 15, 15);
+            doc.save('plan_antrenament.pdf');
+        };
+    </script>
+</body>
+</html>
